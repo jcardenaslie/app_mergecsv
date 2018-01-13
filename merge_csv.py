@@ -7,59 +7,87 @@ from appJar import gui
 # create a GUI variable called app
 app = gui("Merge CSVs")
 
+def checkFilesForCSV(list_name, files_names):
+	for file in files_names:
+		app.addListItem(list_name, file)
+		if '.csv' in file:
+			app.setListItemBg(list_name,file,"Green")
+		else :
+			app.setListItemBg(list_name,file,"Red")
+
+def checkFileForCSV(list_name,file):
+	if '.csv' in file:
+		app.setListItemBg(list_name,file,"Green")
+	else :
+		app.setListItemBg(list_name,file,"Red")
+
 def merge_csvs(btname):
 	frames = []
-	files = app.getListBox("files_merge")
-	path = path = app.getEntry("userEnt")
+	files = app.getAllListItems("files_merge")
+	print("To Merge", files)
+	
+
+	# check for csv files
+	not_csv = 0
+	for file in files:
+		if '.csv' not in file:
+			not_csv += 1
+			
+	print(not_csv)
+
+	if not_csv != 0:
+		app.errorBox('CSV Error','Todos los archivos deben ser csv')
+		return 0
+
+	path = app.getEntry("userEnt")
 	app.clearListBox("files_folder")
 	app.clearListBox("files_merge")
 	
+	#merge with pandas
 	for file in files:
 		print("reading {}".format(path+file))
 		
 		try:
 			df = pd.read_csv(path+file)
 		except:
-			print("Archivo no es un csv")
+			app.errorBox('CSV Error','Hubo un error con los archivos')
 
 		frames.append(df)	
 
 	result = pd.concat(frames)
 	result.to_csv(path + "result.csv")
-	app.errorBox("Merge Complete", "Buscar result.csv en la carpeta")
+	app.infoBox("Merge Complete", "Buscar {}result.csv en la carpeta".format(path), parent=None)
 
 def read_folder(btname):
 	path = app.getEntry("userEnt")
 	app.clearListBox("files_folder")
 	app.clearListBox("files_merge")
+	
 	try:
 		onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 		print(onlyfiles)
-		for file in onlyfiles:
-			app.addListItem("files_folder", file)
-
-			# if '.csv' in file:
-			# 	app.setListItemBg("files_folder",file,"Green")
-			# else :
-			# 	app.setListItemBg("files_folder",file,"Red")
 	except:
-		app.errorBox("Some Error", "Ruta de carpeta no valida.")
+		app.errorBox("Path Error", "Ruta de carpeta no valida.")
+
+	checkFilesForCSV("files_folder",onlyfiles)
 
 def move(direction):
     if direction == ">":
         for item in app.getListBox("files_folder"):
-            app.addListItem("files_merge",item) 
+            app.addListItem("files_merge",item)
             app.removeListItem("files_folder", item)
+            checkFileForCSV("files_merge",item)
     elif direction == "<":
         for item in app.getListBox("files_merge"):
-            app.addListItem("files_folder",item) 
+            app.addListItem("files_folder",item)
             app.removeListItem("files_merge", item)
+            checkFileForCSV("files_folder",item) 
     elif direction == "<<":
-        app.addListItems("files_folder", app.getAllListItems("files_merge"))
-        app.clearListBox("files_merge")
+    	checkFilesForCSV("files_folder",app.getAllListItems("files_merge"))
+    	app.clearListBox("files_merge")
     elif direction == ">>":
-        app.addListItems("files_merge", app.getAllListItems("files_folder"))
-        app.clearListBox("files_folder")
+    	checkFilesForCSV("files_merge",app.getAllListItems("files_folder"))
+    	app.clearListBox("files_folder")
 
 
 app.setSticky("ew")
